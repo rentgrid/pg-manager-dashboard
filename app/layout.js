@@ -1,5 +1,3 @@
-import './globals.css'
-
 export const metadata = {
   title: 'PG Manager Dashboard',
   description: 'Professional Property Management System',
@@ -8,7 +6,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="bg-gray-100">{children}</body>
+      <body>{children}</body>
     </html>
   )
 }
