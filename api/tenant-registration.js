@@ -1,5 +1,6 @@
 // API Endpoint: /api/tenant-registration
 // Handles new tenant registration form submissions
+// Room number removed - tenant assigned to room later
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -23,38 +24,24 @@ export default async function handler(req, res) {
       aadhaar_number,
       native_place,
       occupation,
-      check_in_date,
-      room_number,
-      aadhaar_upload_url
+      check_in_date
     } = req.body;
 
-    console.log('📥 New tenant registration:', { full_name, room_number });
+    console.log('📥 New tenant registration:', { full_name, phone_number });
 
     // Validate required fields
-    if (!full_name || !phone_number || !room_number) {
+    if (!full_name || !phone_number) {
       return res.status(400).json({ 
         error: 'Missing required fields',
-        required: ['full_name', 'phone_number', 'room_number']
+        required: ['full_name', 'phone_number']
       });
     }
 
     // Fixed property ID for Yash Stayz
     const property_id = 'f64d76cd-71d1-489d-a4ab-9556e33fb60c';
 
-    // Look up room_id from room number
-    const { data: roomData, error: roomError } = await supabase
-      .from('rooms')
-      .select('id')
-      .eq('room_number', room_number)
-      .eq('property_id', property_id)
-      .single();
-
-    if (roomError || !roomData) {
-      console.error('❌ Room not found:', room_number);
-      return res.status(404).json({ error: `Room ${room_number} not found` });
-    }
-
-    const room_id = roomData.id;
+    // Room will be assigned later by admin, so room_id is null
+    const room_id = null;
 
     // Insert tenant into Supabase
     const { data: tenantData, error: tenantError } = await supabase
@@ -68,7 +55,7 @@ export default async function handler(req, res) {
         native_place,
         occupation,
         check_in_date: check_in_date || new Date().toISOString(),
-        status: 'active'
+        status: 'pending'
       }])
       .select();
 
@@ -103,11 +90,11 @@ export default async function handler(req, res) {
               },
               {
                 type: "mrkdwn",
-                text: `*Room:*\n${room_number}`
+                text: `*Phone:*\n${phone_number}`
               },
               {
                 type: "mrkdwn",
-                text: `*Phone:*\n${phone_number}`
+                text: `*Occupation:*\n${occupation || 'Not provided'}`
               },
               {
                 type: "mrkdwn",
@@ -119,7 +106,14 @@ export default async function handler(req, res) {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*Occupation:* ${occupation || 'Not provided'}\n*Native Place:* ${native_place || 'Not provided'}`
+              text: `*Aadhaar:* ${aadhaar_number || 'Not provided'}\n*Native Place:* ${native_place || 'Not provided'}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: "📍 *Status:* Pending Room Assignment"
             }
           },
           {
@@ -158,7 +152,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       message: 'Tenant registered successfully',
-      tenant_id: tenantData[0].id
+      tenant_id: tenantData[0].id,
+      status: 'pending_room_assignment'
     });
 
   } catch (error) {
