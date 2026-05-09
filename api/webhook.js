@@ -22,10 +22,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { full_name, phone_number, aadhaar_number, native_place, occupation, check_in_date } = req.body;
+    console.log('📥 Received data:', JSON.stringify(req.body));
+
+    const body = req.body;
+    
+    // Auto-detect field names (case-insensitive)
+    const full_name = body['Full Name'] || body['full_name'] || body.full_name || '';
+    const phone_number = body['Phone Number'] || body['phone_number'] || body.phone_number || '';
+    const aadhaar_number = body['Aadhaar Number'] || body['aadhaar_number'] || body.aadhaar_number || '';
+    const native_place = body['Native Place'] || body['native_place'] || body.native_place || '';
+    const occupation = body['Occupation'] || body['occupation'] || body.occupation || '';
+    const check_in_date = body['Check-in Date'] || body['check_in_date'] || body.check_in_date || new Date().toISOString();
+
+    console.log('✅ Extracted:', { full_name, phone_number });
 
     if (!full_name || !phone_number) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      console.error('❌ Missing fields. Body was:', body);
+      return res.status(400).json({ error: 'Missing full_name or phone_number', received: body });
     }
 
     // Save to Supabase
@@ -39,15 +52,17 @@ export default async function handler(req, res) {
         aadhaar_number,
         native_place,
         occupation,
-        check_in_date: check_in_date || new Date().toISOString(),
+        check_in_date,
         status: 'pending'
       }])
       .select();
 
     if (error) {
-      console.error('Supabase error:', error);
+      console.error('❌ Supabase error:', error);
       return res.status(500).json({ error: error.message });
     }
+
+    console.log('✅ Saved to Supabase');
 
     // Send Slack
     const slackMessage = {
@@ -77,8 +92,11 @@ export default async function handler(req, res) {
       body: JSON.stringify(slackMessage)
     });
 
+    console.log('✅ Slack sent');
+
     return res.status(200).json({ success: true, tenant_id: data[0].id });
   } catch (error) {
+    console.error('❌ Error:', error);
     return res.status(500).json({ error: error.message });
   }
 }
